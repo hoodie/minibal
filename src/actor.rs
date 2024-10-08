@@ -22,15 +22,21 @@ mod service {
         any::{Any, TypeId},
         collections::HashMap,
         pin::Pin,
-        sync::LazyLock,
+        sync::{Arc, LazyLock},
     };
 
+    use futures::FutureExt;
+    use spawn_strategy::Spawner;
+
     use super::*;
-    use crate::error::ActorError::ServiceNotFound;
+    use crate::{error::ActorError::ServiceNotFound, Environment};
 
     type AnyBox = Box<dyn Any + Send + Sync>;
 
-    pub trait Service: Actor + Default {
+    pub trait Service<S>: Actor + Default
+    where
+        S: Spawner<Self>,
+    {
         async fn from_registry() -> crate::error::Result<Addr<Self>> {
             static REGISTRY: LazyLock<async_lock::Mutex<HashMap<TypeId, AnyBox>>> =
                 LazyLock::new(Default::default);
@@ -45,45 +51,61 @@ mod service {
             {
                 Ok(addr)
             } else {
-                todo!();
+                let (event_loop, addr) = Environment::unbounded().launch(Self::default());
+                let mut joiner = S::spawn(event_loop.map(|fut| fut.unwrap()));
+                let actor = joiner.join().await;
+                Ok(addr)
             }
         }
     }
+}
 
-    pub type JoinFuture<A> = Pin<Box<dyn Future<Output = A> + Send>>;
+mod spawn_strategy {
+    use std::{pin::Pin, sync::Arc};
 
-    pub(crate) trait Joiner<A: Actor> {
-        fn join(self) -> JoinFuture<A>;
+    use super::*;
+    pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
+
+    pub(crate) trait Joiner<A: Actor>: Send + Sync {
+        fn join(&mut self) -> JoinFuture<A>;
     }
 
     impl<A, F> Joiner<A> for F
     where
         A: Actor,
-        F: FnOnce() -> JoinFuture<A>,
+        F: FnMut() -> JoinFuture<A>,
         F: Send + Sync,
     {
-        fn join(self) -> JoinFuture<A> {
+        fn join(&mut self) -> JoinFuture<A> {
             self()
         }
     }
 
     pub(crate) trait Spawner<A: Actor> {
-        fn spawn<F>(&self, future: F) -> Box<dyn Joiner<A>>
+        fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
         where
             F: Future<Output = A> + Send + 'static;
     }
 
-    struct TokioSpawner;
+    #[derive(Debug, Default)]
+    #[cfg(feature = "tokio")]
+    pub struct TokioSpawner;
     impl<A: Actor> Spawner<A> for TokioSpawner {
-        fn spawn<F>(&self, future: F) -> Box<dyn Joiner<A>>
+        fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
         where
             F: Future<Output = A> + Send + 'static,
         {
-            let handle = tokio::spawn(future);
+            let handle = Arc::new(async_lock::Mutex::new(Some(tokio::spawn(future))));
             Box::new(move || -> JoinFuture<A> {
+                let handle = Arc::clone(&handle);
                 Box::pin(async move {
-                    let actor = handle.await.unwrap();
-                    actor
+                    let mut handle: Option<tokio::task::JoinHandle<A>> = handle.lock().await.take();
+
+                    if let Some(handle) = handle.take() {
+                        handle.await.ok()
+                    } else {
+                        None
+                    }
                 })
             })
         }
