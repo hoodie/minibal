@@ -1,5 +1,5 @@
 use async_signals::Signals;
-use minibal::{prelude::*, register};
+use minibal::prelude::*;
 
 #[derive(Debug, Default)]
 struct SignalService {
@@ -26,8 +26,12 @@ impl StreamHandler<i32> for SignalService {
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let signals = Signals::new(vec![libc::SIGINT]).unwrap();
-    let addr = SignalService::default().spawn_on_stream(signals).unwrap();
-    register(addr).await;
+    SignalService::default()
+        .spawn_on_stream(signals)
+        .unwrap()
+        .register()
+        .await;
+
     let addr = SignalService::from_registry().await.unwrap();
 
     println!("kill me with Ctrl-C three times to stop the actor");

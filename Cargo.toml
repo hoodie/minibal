@@ -22,7 +22,8 @@ libc = "0.2"
 
 [features]
 # TODO: make tokio optional
-default = ["tokio"]
+default = [
+"tokio","async-std"]
 
 [[example]]
 name = "simple"
@@ -30,8 +31,8 @@ path = "examples/simple.rs"
 required-features = ["tokio"]
 
 [[example]]
-name = "signals-service"
-path = "examples/signals-service.rs"
+name = "signal-service"
+path = "examples/signal-service.rs"
 required-features = ["tokio"]
 
 [lints.rust]
