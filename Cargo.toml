@@ -23,7 +23,9 @@ libc = "0.2"
 [features]
 # TODO: make tokio optional
 default = [
-"tokio","async-std"]
+"tokio",
+# "async-std"
+]
 
 [[example]]
 name = "simple"
