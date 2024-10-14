@@ -32,7 +32,6 @@ pub trait Spawner<A: Actor> {
 pub trait SpawnableWith: Actor {
     fn spawn_with<S: Spawner<Self>>(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
         let (event_loop, addr) = crate::Environment::unbounded().launch(self);
-        // let joiner = S::spawn(futures::FutureExt::map(event_loop, |fut| fut.unwrap()));
         let joiner = S::spawn(event_loop);
         Ok((addr, joiner))
     }
@@ -118,15 +117,15 @@ impl<A> Spawnable<TokioSpawner> for A where A: Actor {}
 #[cfg(feature = "tokio")]
 impl<A, T> StreamSpawnable<TokioSpawner, T> for A where
     A: Actor + StreamHandler<T::Item>,
-    // S: Spawner<A>,
     T: futures::Stream + Unpin + Send + 'static,
     T::Item: 'static + Send
 {
 }
 
-
 #[cfg(feature = "tokio")]
 impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
+
+// and now for async-std
 
 #[cfg(feature = "async-std")]
 #[derive(Copy, Clone, Debug, Default)]
@@ -154,8 +153,18 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
         })
     }
 }
+
 #[cfg(feature = "async-std")]
 impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
+
+#[cfg(feature = "async-std")]
+impl<A, T> StreamSpawnable<AsyncStdSpawner, T> for A where
+    A: Actor + StreamHandler<T::Item>,
+    T: futures::Stream + Unpin + Send + 'static,
+    T::Item: 'static + Send
+{
+}
+
 #[cfg(feature = "async-std")]
 impl<A> DefaultSpawnable<AsyncStdSpawner> for A where A: Actor + Default {}
 

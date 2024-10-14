@@ -14,17 +14,12 @@ type AnyBox = Box<dyn Any + Send + Sync>;
 static REGISTRY: LazyLock<async_lock::Mutex<HashMap<TypeId, AnyBox>>> =
     LazyLock::new(Default::default);
 
-impl<A: Actor> Addr<A>
-where
-    A: Service,
-{
+/// register an actor with the registry
+impl<A: Actor + Service> Addr<A> {
     pub fn register(self) -> impl Future<Output = Option<Addr<A>>> {
         async {
             let key = TypeId::of::<A>();
             let mut registry = REGISTRY.lock().await;
-
-            eprintln!("registering actor {}", std::any::type_name::<A>());
-            eprintln!("elements in registry before: {:?}", registry.iter().count());
 
             let replaced = registry
                 .insert(key, Box::new(self))
@@ -38,14 +33,25 @@ where
     }
 }
 
+#[cfg(all(feature = "tokio", not(feature = "async-std")))]
 pub trait Service: Actor + Default {
     fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
         <Self as SpawnableService<spawn_strategy::TokioSpawner>>::from_registry()
     }
 }
 
+#[cfg(all(not(feature = "tokio"), feature = "async-std"))]
+pub trait Service: Actor + Default {
+    fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
+        <Self as SpawnableService<spawn_strategy::AsyncStdSpawner>>::from_registry()
+    }
+}
+
 #[cfg(feature = "tokio")]
 impl<A> SpawnableService<spawn_strategy::TokioSpawner> for A where A: Service {}
+
+#[cfg(feature = "async-std")]
+impl<A> SpawnableService<spawn_strategy::AsyncStdSpawner> for A where A: Service {}
 
 pub trait SpawnableService<S>: Actor + Default
 where
@@ -56,13 +62,6 @@ where
             let key = TypeId::of::<Self>();
 
             let mut registry = REGISTRY.lock().await;
-            eprintln!("elements in registry when looking: {:?}", registry.iter().count());
-
-            eprintln!("looking for key: {:?}", key);
-            registry.keys().for_each(|key| {
-                eprintln!("key: {:?}", key);
-            });
-
 
             if let Some(addr) = registry
                 .get_mut(&key)
@@ -72,10 +71,6 @@ where
             {
                 Ok(addr)
             } else {
-                eprintln!(
-                    "not found {}, Creating new instance of Service",
-                    std::any::type_name::<Self>()
-                );
                 let (event_loop, addr) = Environment::unbounded().launch(Self::default());
                 S::spawn(event_loop);
                 registry.insert(key, Box::new(addr.clone()));
@@ -129,7 +124,7 @@ mod tests {
             spawn_strategy::{AsyncStdSpawner, SpawnableWith},
         };
 
-        #[tokio::test]
+        #[async_std::test]
         async fn register_as_service() {
             let (addr, mut joiner) = AsyncStdActor(1337).spawn_with::<AsyncStdSpawner>().unwrap();
             addr.register().await;
@@ -143,6 +138,8 @@ mod tests {
 
         #[async_std::test]
         async fn get_service_from_registry() {
+            color_backtrace::install();
+
             let mut svc_addr = AsyncStdActor::from_registry().await.unwrap();
             assert!(!svc_addr.stopped());
 

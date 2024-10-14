@@ -1,3 +1,7 @@
+#![cfg_attr(
+    all(feature = "tokio", feature = "async-std"),
+    allow(dead_code, unused)
+)]
 use minibal::prelude::*;
 
 struct MyActor(&'static str);
@@ -52,3 +56,6 @@ async fn main() {
     println!("The Actor Calculated: {:?}", addition);
     println!("{:#?}", addr.stop());
 }
+
+#[cfg(all(feature = "tokio", feature = "async-std"))]
+fn main() {}
