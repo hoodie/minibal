@@ -530,6 +530,7 @@ dependencies = [
  "async-lock",
  "async-signals",
  "async-std",
+ "cfg-if",
  "color-backtrace",
  "ctor",
  "dyn-clone",

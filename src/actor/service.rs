@@ -4,8 +4,9 @@ use std::{
     sync::LazyLock,
 };
 
-use super::spawn_strategy::Spawner;
-use super::*;
+use futures::{FutureExt as _, TryFutureExt};
+
+use super::{spawn_strategy::Spawner, *};
 
 use crate::{Addr, Environment};
 
@@ -33,31 +34,20 @@ impl<A: Actor + Service> Addr<A> {
     }
 }
 
-#[cfg(all(feature = "tokio", not(feature = "async-std")))]
 pub trait Service: Actor + Default {
+    fn setup() -> impl Future<Output = DynResult<()>> {
+        Self::from_registry_and_spawn()
+            .map(|res| res.map(|_| ()))
+            .map_err(Into::into)
+    }
+
     fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
-        <Self as SpawnableService<spawn_strategy::TokioSpawner>>::from_registry()
+        Self::from_registry_and_spawn()
     }
 }
 
-#[cfg(all(not(feature = "tokio"), feature = "async-std"))]
-pub trait Service: Actor + Default {
-    fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
-        <Self as SpawnableService<spawn_strategy::AsyncStdSpawner>>::from_registry()
-    }
-}
-
-#[cfg(feature = "tokio")]
-impl<A> SpawnableService<spawn_strategy::TokioSpawner> for A where A: Service {}
-
-#[cfg(feature = "async-std")]
-impl<A> SpawnableService<spawn_strategy::AsyncStdSpawner> for A where A: Service {}
-
-pub trait SpawnableService<S>: Actor + Default
-where
-    S: Spawner<Self>,
-{
-    fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
+pub(crate) trait SpawnableService<S: Spawner<Self>>: Actor + Default {
+    fn from_registry_and_spawn() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
         async {
             let key = TypeId::of::<Self>();
 
@@ -80,6 +70,18 @@ where
     }
 }
 
+#[cfg(any(
+    all(feature = "tokio", not(feature = "async-std")),
+    all(not(feature = "tokio"), feature = "async-std")
+))]
+impl<A, S> SpawnableService<S> for A
+where
+    A: Service,
+    A: spawn_strategy::Spawnable<S>,
+    S: Spawner<A>,
+{
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -87,8 +89,8 @@ mod tests {
     mod spawned_with_tokio {
         use crate::{
             actor::tests::{spawned_with_tokio::TokioActor, Identify, Ping},
-            service::SpawnableService,
             spawn_strategy::{SpawnableWith, TokioSpawner},
+            Service,
         };
 
         #[tokio::test]
@@ -120,8 +122,8 @@ mod tests {
     mod spawned_with_asyncstd {
         use crate::{
             actor::tests::{spawned_with_asyncstd::AsyncStdActor, Identify, Ping},
-            service::SpawnableService,
             spawn_strategy::{AsyncStdSpawner, SpawnableWith},
+            Service,
         };
 
         #[async_std::test]
