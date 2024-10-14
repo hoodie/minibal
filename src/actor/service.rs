@@ -20,13 +20,20 @@ where
 {
     pub fn register(self) -> impl Future<Output = Option<Addr<A>>> {
         async {
-            let key = TypeId::of::<Self>();
-            REGISTRY
-                .lock()
-                .await
+            let key = TypeId::of::<A>();
+            let mut registry = REGISTRY.lock().await;
+
+            eprintln!("registering actor {}", std::any::type_name::<A>());
+            eprintln!("elements in registry before: {:?}", registry.iter().count());
+
+            let replaced = registry
                 .insert(key, Box::new(self))
                 .and_then(|addr| addr.downcast::<Addr<A>>().ok())
-                .map(|addr| *addr)
+                .map(|addr| *addr);
+
+            eprintln!("elements in registry after: {:?}", registry.iter().count());
+
+            return replaced;
         }
     }
 }
@@ -48,18 +55,30 @@ where
         async {
             let key = TypeId::of::<Self>();
 
-            let mut entry = REGISTRY.lock().await;
+            let mut registry = REGISTRY.lock().await;
+            eprintln!("elements in registry when looking: {:?}", registry.iter().count());
 
-            if let Some(addr) = entry
+            eprintln!("looking for key: {:?}", key);
+            registry.keys().for_each(|key| {
+                eprintln!("key: {:?}", key);
+            });
+
+
+            if let Some(addr) = registry
                 .get_mut(&key)
+                .inspect(|addr| eprintln!("found addr: {:?}", addr))
                 .and_then(|addr| addr.downcast_ref::<Addr<Self>>())
                 .map(ToOwned::to_owned)
             {
                 Ok(addr)
             } else {
+                eprintln!(
+                    "not found {}, Creating new instance of Service",
+                    std::any::type_name::<Self>()
+                );
                 let (event_loop, addr) = Environment::unbounded().launch(Self::default());
                 S::spawn(event_loop);
-                entry.insert(key, Box::new(addr.clone()));
+                registry.insert(key, Box::new(addr.clone()));
                 Ok(addr)
             }
         }
@@ -80,7 +99,8 @@ mod tests {
         #[tokio::test]
         async fn register_as_service() {
             let (addr, mut joiner) = TokioActor(1337).spawn_with::<TokioSpawner>().unwrap();
-            addr.register().await;
+            let replaced_something = addr.register().await.is_some();
+            dbg!(replaced_something);
             let mut svc_addr = TokioActor::from_registry().await.unwrap();
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
             assert_eq!(svc_addr.call(Identify).await.unwrap(), 1337);
