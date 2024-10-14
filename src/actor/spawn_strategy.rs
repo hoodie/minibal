@@ -4,7 +4,7 @@ use crate::{Addr, StreamHandler};
 
 use super::{Actor, DynResult};
 
-pub(crate) type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
+pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
 pub(crate) type DynJoiner<A> = Box<dyn Joiner<A>>;
 pub trait Joiner<A: Actor>: Send + Sync {

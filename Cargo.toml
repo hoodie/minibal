@@ -36,6 +36,10 @@ path = "examples/simple.rs"
 required-features = ["tokio"]
 
 [[example]]
+name = "custom_spawner"
+path = "examples/custom_spawner.rs"
+
+[[example]]
 name = "signal-service"
 path = "examples/signal-service.rs"
 required-features = [
