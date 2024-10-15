@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 thiserror = "1.0"
-futures-executor = "0.3"
 futures = { version = "0.3" }
 color-backtrace = "0.6"
 async-lock = "3"
@@ -19,6 +18,7 @@ cfg-if = "1.0.0"
 tokio = { version = "1.39", features = ["full"] }
 async-std = { version = "1.13", features = ["attributes"] }
 async-signals = "0.5.0"
+futures-executor = { version = "0.3", features = ["thread-pool"] }
 libc = "0.2"
 ctor = "0.2.8"
 color-backtrace = "0.6"

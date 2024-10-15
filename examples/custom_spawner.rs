@@ -1,15 +1,17 @@
-use std::{borrow::Borrow as _, future::Future, sync::Arc};
+use std::{
+    future::Future,
+    sync::{Arc, LazyLock, Mutex},
+};
 
-use futures::{executor::LocalPool, task::SpawnExt};
+use futures::task::SpawnExt as _;
+use futures_executor::ThreadPool;
 use minibal::{
     prelude::*,
     spawn_strategy::{JoinFuture, Joiner, SpawnableWith, Spawner},
 };
 
-thread_local! {
-    static POOL: std::cell::RefCell<LocalPool>  = LocalPool::new().into();
-    // static LOCAL_REGISTRY: RefCell<HashMap<TypeId, Box<dyn Any + Send>, BuildHasherDefault<FnvHasher>>> = RefCell::default();
-}
+// static POOL: std::cell::RefCell<LocalPool>  = LocalPool::new().into();
+static POOL: LazyLock<Mutex<ThreadPool>> = LazyLock::new(|| ThreadPool::new().unwrap().into());
 
 struct CustomSpawner;
 
@@ -21,10 +23,12 @@ impl<A: Actor> Spawner<A> for CustomSpawner {
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
     {
         eprintln!("Spawning actor with custom spawner");
-        let handle = Arc::new(async_lock::Mutex::new(Some(
-            POOL.borrow()
-                .with(|pool| pool.borrow().spawner().spawn_with_handle(future)),
-        )));
+        let handle = Arc::new(async_lock::Mutex::new(Some({
+            let pool = POOL.lock().unwrap();
+            pool.spawn_with_handle(future)
+        })));
+
+        eprintln!("Spawned actor with custom spawner");
         Box::new(move || -> JoinFuture<A> {
             let handle = Arc::clone(&handle);
             Box::pin(async move {
@@ -48,21 +52,24 @@ impl Actor for MyActor {
     }
 
     async fn stopped(&mut self, _ctx: &mut Context<Self>) {
-        eprintln!("Actor stopped")
+        eprintln!("stopping actor")
     }
 }
 
-// impl Spawnable<CustomSpawner> for MyActor {}
+impl Spawnable<CustomSpawner> for MyActor {}
 
 // #[cfg(all(not(feature = "tokio"), not(feature = "async-std")))]
 fn main() {
+    color_backtrace::install();
     futures::executor::block_on(async {
-        // let mut addr = MyActor.spawn().unwrap();
-        let (mut addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
-        // eprintln!("Actor started with {}", MyActor::spawner_name());
+        let (mut _addr, _) = MyActor.spawn_with::<CustomSpawner>().unwrap();
+        let (mut addr, mut joiner) = MyActor.spawn_and_get_joiner().unwrap();
+        eprintln!("Actor started with {}", MyActor::spawner_name());
 
         addr.stop().unwrap();
         eprintln!("Actor asked to stop");
         addr.await.unwrap();
+        joiner.join().await;
+        eprintln!("Actor stopped");
     })
 }
