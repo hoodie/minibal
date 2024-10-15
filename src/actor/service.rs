@@ -16,6 +16,7 @@ static REGISTRY: LazyLock<async_lock::Mutex<HashMap<TypeId, AnyBox>>> =
     LazyLock::new(Default::default);
 
 /// register an actor with the registry
+#[cfg(any(feature = "tokio", feature = "async-std"))]
 impl<A: Actor + Service> Addr<A> {
     pub fn register(self) -> impl Future<Output = Option<Addr<A>>> {
         async {
@@ -34,6 +35,7 @@ impl<A: Actor + Service> Addr<A> {
     }
 }
 
+#[cfg(any(feature = "tokio", feature = "async-std"))]
 pub trait Service: Actor + Default {
     fn setup() -> impl Future<Output = DynResult<()>> {
         Self::from_registry_and_spawn()
@@ -46,7 +48,20 @@ pub trait Service: Actor + Default {
     }
 }
 
-pub(crate) trait SpawnableService<S: Spawner<Self>>: Actor + Default {
+#[cfg(not(any(feature = "tokio", feature = "async-std")))]
+pub trait Service<S: Spawner<Self>>: Actor + Default + SpawnableService<S> {
+    fn setup() -> impl Future<Output = DynResult<()>> {
+        Self::from_registry_and_spawn()
+            .map(|res| res.map(|_| ()))
+            .map_err(Into::into)
+    }
+
+    fn from_registry() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
+        Self::from_registry_and_spawn()
+    }
+}
+
+pub trait SpawnableService<S: Spawner<Self>>: Actor + Default {
     fn from_registry_and_spawn() -> impl Future<Output = crate::error::Result<Addr<Self>>> {
         async {
             let key = TypeId::of::<Self>();

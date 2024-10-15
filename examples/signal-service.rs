@@ -11,6 +11,8 @@ impl Service for SignalService {
     async fn setup() -> DynResult<()> {
         let signals = Signals::new(vec![libc::SIGINT])?;
 
+        println!("spawing with {}", Self::spawner_name());
+
         SignalService::default()
             .spawn_on_stream(signals)?
             .register()

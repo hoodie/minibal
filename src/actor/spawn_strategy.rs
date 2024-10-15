@@ -8,7 +8,6 @@ pub type JoinFuture<A> = Pin<Box<dyn Future<Output = Option<A>> + Send>>;
 
 pub(crate) type DynJoiner<A> = Box<dyn Joiner<A>>;
 pub trait Joiner<A: Actor>: Send + Sync {
-    #[allow(unused)]
     fn join(&mut self) -> JoinFuture<A>;
 }
 
@@ -24,6 +23,7 @@ where
 }
 
 pub trait Spawner<A: Actor> {
+    const NAME: &'static str;
     fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static;
@@ -42,6 +42,10 @@ impl<A: Actor> SpawnableWith for A {}
 pub trait Spawnable<S: Spawner<Self>>: Actor {
     fn spawn(self) -> crate::error::Result<Addr<Self>> {
         Ok(self.spawn_and_get_joiner()?.0)
+    }
+
+    fn spawner_name() -> &'static str {
+        S::NAME
     }
 
     fn spawn_and_get_joiner(self) -> crate::error::Result<(Addr<Self>, DynJoiner<Self>)> {
@@ -90,6 +94,7 @@ pub struct TokioSpawner;
 
 #[cfg(feature = "tokio")]
 impl<A: Actor> Spawner<A> for TokioSpawner {
+    const NAME: &'static str = "tokio";
     fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
@@ -120,6 +125,7 @@ pub struct AsyncStdSpawner;
 
 #[cfg(feature = "async-std")]
 impl<A: Actor> Spawner<A> for AsyncStdSpawner {
+    const NAME: &'static str = "asnyc-std";
     fn spawn<F>(future: F) -> Box<dyn Joiner<A>>
     where
         F: Future<Output = crate::DynResult<A>> + Send + 'static,
@@ -144,8 +150,6 @@ impl<A: Actor> Spawner<A> for AsyncStdSpawner {
 
 cfg_if::cfg_if! {
     if #[cfg( all(feature = "tokio", not(feature = "async-std")))] {
-        // type DefaultSpawner = crate::spawn_strategy::TokioSpawner;
-
         impl<A> Spawnable<TokioSpawner> for A where A: Actor {}
 
         impl<A, T> StreamSpawnable<TokioSpawner, T> for A
@@ -153,14 +157,11 @@ cfg_if::cfg_if! {
             A: Actor + StreamHandler<T::Item>,
             T: futures::Stream + Unpin + Send + 'static,
             T::Item: 'static + Send,
-        {
-        }
+        {}
 
         #[cfg(feature = "tokio")]
         impl<A> DefaultSpawnable<TokioSpawner> for A where A: Actor + Default {}
-    }
-    else if #[cfg( all(not(feature = "tokio"), feature = "async-std") )] {
-        // type DefaultSpawner = crate::spawn_strategy::AsyncStdSpawner;
+    } else if #[cfg( all(not(feature = "tokio"), feature = "async-std") )] {
         impl<A> Spawnable<AsyncStdSpawner> for A where A: Actor {}
 
         impl<A, T> StreamSpawnable<AsyncStdSpawner, T> for A
@@ -173,9 +174,10 @@ cfg_if::cfg_if! {
 
         impl<A> DefaultSpawnable<AsyncStdSpawner> for A where A: Actor + Default {}
 
-    }
-    else {
-        compile_error!("you need to enable either the `tokio` or `async-std` feature to use this crate")
+    } else if #[cfg(all(feature = "tokio", feature = "async-std") )] {
+        // if both are enabled, we can not provice a default spawner
+    } else {
+        // if both are enabled, we can not provice a default spawner either
     }
 }
 
