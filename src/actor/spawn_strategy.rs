@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use crate::{Addr, StreamHandler};

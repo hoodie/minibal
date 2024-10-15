@@ -57,7 +57,9 @@ impl<A: Actor> Environment<A, RestartOnly> {
 
 impl<A: Actor, R: RestartStrategy<A>> Environment<A, R> {
     pub fn launch(mut self, mut actor: A) -> (impl Future<Output = crate::DynResult<A>>, Addr<A>) {
+        eprintln!("launching actor");
         let actor_loop = async move {
+            eprintln!("actor loop entered");
             actor.started(&mut self.ctx).await?;
 
             while let Some(event) = self.payload_rx.recv().await {
