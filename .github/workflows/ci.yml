@@ -1,0 +1,70 @@
+on: [push, pull_request]
+
+name: Continuous Integration
+
+jobs:
+  check:
+    name: cargo-check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - stable minus 3 releases
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+      - name: default-features
+        run: cargo check
+
+      - name: check all features
+        run: cargo check --all-features
+
+
+  test:
+    name: cargo-test ...
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: test
+        run: cargo test
+
+      - name: test (with parser)
+        run: cargo test --features parser
+
+      - name: test (with TZ)
+        run: cargo test --features chrono-tz
+
+  semver:
+    name: cargo-semver-checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2.6
+
+  fmtclippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo-clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: cargo-fmt
+        run: cargo fmt --all --check
