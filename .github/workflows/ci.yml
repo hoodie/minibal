@@ -22,14 +22,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-      - name: default-features
+
+      - name: check
         run: cargo check
 
-      - name: check all features
-        run: cargo check --all-features
+      - name: check
+        run: cargo check --all-targets --no-default-features
 
       - name: check ${{matrix.features}}
-        run: cargo check --no-default-features --features ${{matrix.features}}
+        run: cargo check --all-targets --no-default-features --features ${{matrix.features}}
 
   test:
     name: cargo-test ...
@@ -41,6 +42,9 @@ jobs:
 
       - name: test
         run: cargo test
+
+      - name: check
+        run: cargo test --all-targets --no-default-features
 
       - name: test ${{matrix.features}}
         run: cargo test --no-default-features --features ${{matrix.features}}
@@ -66,8 +70,15 @@ jobs:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
 
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: clippy ${{matrix.features}}
+        run: cargo clippy --no-default-features --features ${{matrix.features}}
+
+
       - name: cargo-clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: cargo-fmt
         run: cargo fmt --all --check
