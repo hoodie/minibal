@@ -15,9 +15,9 @@ clippy:
 
 
 test:
-    cargo --quiet test
-    cargo --quiet test --all-targets --no-default-features
-    cargo --quiet test --lib --no-default-features --features tokio
-    cargo --quiet test --lib --no-default-features --features async-std
+    cargo --quiet test --workspace
+    cargo --quiet test --workspace --all-targets --no-default-features
+    cargo --quiet test --workspace --lib --no-default-features --features tokio
+    cargo --quiet test --workspace --lib --no-default-features --features async-std
 
 ci: clippy test

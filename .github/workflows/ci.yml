@@ -41,13 +41,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: test
-        run: cargo test
+        run: cargo test --workspace
 
       - name: check
-        run: cargo test --all-targets --no-default-features
+        run: cargo test --workspace --all-targets --no-default-features
 
       - name: test ${{matrix.features}}
-        run: cargo test --no-default-features --features ${{matrix.features}}
+        run: cargo test --workspace --no-default-features --features ${{matrix.features}}
 
   semver:
     name: cargo-semver-checks
@@ -74,7 +74,7 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: clippy ${{matrix.features}}
-        run: cargo clippy --no-default-features --features ${{matrix.features}}
+        run: cargo clippy --workspace --no-default-features --features ${{matrix.features}}
 
 
       - name: cargo-clippy
