@@ -29,7 +29,7 @@ jobs:
         run: cargo check --all-features
 
       - name: check ${{matrix.features}}
-        run: cargo check --no-default-features --features ${{matric.features}}
+        run: cargo check --no-default-features --features ${{matrix.features}}
 
   test:
     name: cargo-test ...
@@ -43,7 +43,7 @@ jobs:
         run: cargo test
 
       - name: test ${{matrix.features}}
-        run: cargo test --no-default-features --features ${{matric.features}}
+        run: cargo test --no-default-features --features ${{matrix.features}}
 
   semver:
     name: cargo-semver-checks
