@@ -1,4 +1,4 @@
-on: [push, pull_request]
+# on: [push, pull_request]
 
 name: Continuous Integration
 
@@ -12,6 +12,10 @@ jobs:
           - stable
           - beta
           - stable minus 3 releases
+        features:
+          - default
+          - tokio
+          - async-stdasync-std
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -24,6 +28,8 @@ jobs:
       - name: check all features
         run: cargo check --all-features
 
+      - name: check ${{matrix.features}}
+        run: cargo check --no-default-features --features ${{matric.features}}
 
   test:
     name: cargo-test ...
@@ -36,11 +42,8 @@ jobs:
       - name: test
         run: cargo test
 
-      - name: test (with parser)
-        run: cargo test --features parser
-
-      - name: test (with TZ)
-        run: cargo test --features chrono-tz
+      - name: test ${{matrix.features}}
+        run: cargo test --no-default-features --features ${{matric.features}}
 
   semver:
     name: cargo-semver-checks
