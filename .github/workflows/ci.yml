@@ -2,20 +2,15 @@ on: [push, pull_request]
 
 name: Continuous Integration
 
+
 jobs:
   check:
     name: cargo-check
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust:
-          - stable
-          - beta
-          - stable minus 3 releases
-        features:
-          - default
-          - tokio
-          - async-std
+        rust: [stable, beta, nightly]
+        features: [default, tokio, async-std]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -35,6 +30,10 @@ jobs:
   test:
     name: cargo-test ...
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, beta, nightly]
+        features: [default, tokio, async-std]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -62,6 +61,10 @@ jobs:
 
   fmtclippy:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, beta, nightly]
+        features: [default, tokio, async-std]
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
