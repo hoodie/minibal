@@ -1,17 +1,39 @@
-# (Mini|Hanni)bal
+<div align="center">
 
-A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor framework for Rust.
+# Hannibal
 
-## Differences and Plans
+<!-- Crates version -->
+[![build](https://img.shields.io/github/actions/workflow/status/hoodie/hannibal/ci_cd.yml?branch=main)](https://github.com/hoodie/hannibal/actions?query=workflow%3A"\"Build")
+[![version](https://img.shields.io/crates/v/hannibal)](https://crates.io/crates/hannibal/)
+[![downloads](https://img.shields.io/crates/d/hannibal.svg?style=flat-square)](https://crates.io/crates/hannibal)
+[![docs.rs docs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/hannibal)
+[![contributors](https://img.shields.io/github/contributors/hoodie/notify-rust)](https://github.com/hoodie/hannibal/graphs/contributors)
+![maintenance](https://img.shields.io/maintenance/yes/2025)
+[![license](https://img.shields.io/crates/l/hannibal.svg?style=flat)](https://crates.io/crates/hannibal/)
 
-- ~Typefree Context (not parameterized over concrete actor)~
+a small actor library
+</div>
+ 
+## Features
+
+- Async actors.
+- Actor communication in a local context.
+- Using Futures for asynchronous message handling.
+- Typed messages (No `Any` type). Generic messages are allowed.
+
+## New since 0.12
+
 - Strong and Weak Senders and Callers (as in actix)
-- Exchangeable Channel Implementation ((un)bound, std, futures, tokio, lets see)
-- Exchangable Runtime (no compiletime feature, no hannibal::block_on())
-- maybe no extra proc_macro derive for messages necessary
-- Streams are Handled by launching an actor together with a stream. This avoids extra tasks and simplifies the logic.
+- Exchangeable Channel Implementation
+  - included: bounded and unbounded 
+- Streams are Handled by launching an actor together with a stream.
+  - Avoids extra tasks and simplifies the logic.
   The actor lives only as long as the stream.
 - Actor trait only brings methods that you should implement (better "implement missing members" behavior)
+- derive macros for `Actor`, `Service` and `Message`
+- Owning Addresses 
+  - allows returning actor content after stop
+- Builder
 
 ## TODO
 
@@ -36,7 +58,6 @@ A minimalistic reimplementation of the [Hannibal](https://lib.rs/hannibal) actor
    - [ ] (optional) have utility services already?
    - [ ] SUPPORT restarting stream handlers
 - [x] logging and console subscriber
-- [ ] test with rstest
 - [ ] stop reason
 - [x] owning addr
    - returns actor again after stop
