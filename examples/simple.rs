@@ -39,7 +39,7 @@ impl Handler<Add> for MyActor {
 #[tokio::main]
 async fn main() {
     let mut addr = MyActor("Caesar").spawn();
-    addr.send(Greet("Cornelius")).await.unwrap();
+    addr.send(Greet("Hanibal")).await.unwrap();
     let addition = addr.call(Add(1, 2)).await;
 
     println!("The Actor Calculated: {:?}", addition);

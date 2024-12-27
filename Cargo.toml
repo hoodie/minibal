@@ -1,6 +1,6 @@
 [package]
-name = "hannibal"
-version = "0.12.0"
+name = "minibal"
+version = "0.12.0-rc.1"
 edition = "2021"
 
 [dependencies]
