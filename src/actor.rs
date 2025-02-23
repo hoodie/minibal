@@ -32,6 +32,113 @@ pub trait Actor: Sized + Send + 'static {
     }
 }
 
+/// Start building and configure you actor.
+///
+/// One feature of hannibal is that you can configure your actor's runtime beha is behaving before spawning.
+/// This includes
+/// ## 1. what kind of channels do you use under the hood /// and how large are the channel's buffers?
+/// Unbounded versus Bounded.
+///
+/// ### Example
+/// You can configure what kind of channel the actor uses and what its capacity should be.
+///
+/// ```no_run
+/// # #[derive(hannibal_derive::Actor,hannibal_derive::RestartableActor, Default)]
+/// # struct MyActor;
+/// // start MyActor with a mailbox capacity of 6
+/// let addr_bounded = hannibal::build(MyActor)
+///     .bounded(6)
+///     .spawn();
+///
+/// //  start MyActor with an infinite mailbox
+/// let addr_unbounded = hannibal::build(MyActor)
+///     .unbounded()
+///     .spawn();
+/// ```
+/// ## 2. should the actor create a fresh object on restart?
+/// If you restart the actor its [`started()`](`Actor::started`) method will be called.
+/// You don't need to clean up and reset the actor's state if you configure it to be recreated from `Default` at spawn-time.
+///
+/// ### Example: Reset on Restart
+/// This configuration will start the actor `Counter` with a bounded channel capacity of `6`
+/// and recreate it from `Default` when `.restart()` is called.
+/// ```no_run
+/// # #[derive(hannibal_derive::Actor,hannibal_derive::RestartableActor)]
+/// #[derive(Default)]
+/// struct Counter(usize);
+///
+/// let addr = hannibal::build(Counter(0))
+///     .bounded(6)
+///     .recreate_from_default()
+///     .spawn();
+/// ```
+///
+/// ## 3. should it listen to a stream.
+///
+/// This one is an improvement over 0.10 where under the hood we would start listening to the stream on a separate task and send each message to the actor.
+/// This ment two tasks and twice the amount of sending.
+/// Since 0.12 hannibal can start the actor's event loop tightly coupled to the stream.
+///
+/// ### Example: Attache to stream
+/// Here we tie the lifetime of the actor to the stream.
+/// There is no extra task or messaging between them,
+/// the actor owns the stream now and polls it in its own event loop
+///
+/// ```no_run
+/// # use hannibal::{Context, StreamHandler, Handler, Actor};
+/// struct Connector;
+/// impl Actor for Connector {}
+///
+/// impl StreamHandler<i32> for Connector {
+///     async fn handle(&mut self, _ctx: &mut Context<Self>, msg: i32) {
+///         println!("[Connection] Received: {}", msg);
+///     }
+/// }
+///
+/// let the_stream = futures::stream::iter(0..19);
+///
+/// let addr = hannibal::build(Connector)
+///         .unbounded()
+///         .non_restartable()
+///         .with_stream(the_stream)
+///         .spawn();
+///
+/// # let the_stream = futures::stream::iter(0..19);
+///
+/// // you can also express this shorter
+/// let addr = hannibal::build(Connector)
+///         .on_stream(the_stream)
+///         .spawn();
+///
+/// # let the_stream = futures::stream::iter(0..19);
+///
+/// // you can also have bounded channels
+/// let addr = hannibal::build(Connector)
+///         .bounded_on_stream(10, the_stream)
+///         .spawn();
+/// ```
+/// ## 4. should the actor enfore timeouts when waiting?
+///
+///
+///
+/// ## Example: timeouts
+/// ## Example: register service
+/// ```no_run
+/// # #[derive(hannibal_derive::Actor,hannibal_derive::RestartableActor)]
+/// #[derive(Default)]
+/// struct Counter(usize);
+/// impl hannibal::Service for Counter {}
+///
+/// # async move {
+/// let addr = hannibal::build(Counter(0))
+///     .bounded(6)
+///     .recreate_from_default()
+///     .register()
+///     .await
+///     .unwrap();
+/// # };
+/// ```
+/// Instead of spawning the actor, which will return you the actor's address you can also register it as a service.
 #[cfg(any(feature = "tokio", feature = "async-std"))]
 pub fn build<A: Actor>(actor: A) -> builder::BaseActorBuilder<A, spawner::DefaultSpawner> {
     builder::BaseActorBuilder::new(actor)

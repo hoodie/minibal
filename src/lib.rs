@@ -4,7 +4,10 @@
 //! This can become cumbersome in larger projects and complicated when supporting multiple message types.
 //! An [`Actor`] *is* a task that can receive and handle [messages](`Message`) and store internal state.
 //!
-//! ## Example
+//! Actors can also be used to handle [Streams](`futures::Stream`). Take a look at [`hannibal::build()`](`build`)
+//! to see how to configure an actor's runtime behavior and how to launch them on streams.
+//!
+//! ## Simple Example
 //!
 //! ```rust
 //! # use hannibal::prelude::*;
