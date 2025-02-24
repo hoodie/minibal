@@ -230,7 +230,9 @@ impl<A: Actor> OwningAddr<A> {
         self.handle.join()
     }
 
-    #[deprecated(note = "use `consume` instead")]
+    /// Stops the actor and waits for it to stop.
+    ///
+    /// If stop fails you will get an error before waiting for the actor to stop.
     pub fn stop_and_join(mut self) -> Result<JoinFuture<A>> {
         self.addr.stop()?;
         Ok(self.join())
