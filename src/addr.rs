@@ -224,19 +224,24 @@ impl<A: Actor> OwningAddr<A> {
     pub(crate) fn new(addr: Addr<A>, handle: Box<dyn ActorHandle<A>>) -> Self {
         OwningAddr { addr, handle }
     }
+
+    /// Waits for the actor to stop and returns it.
     pub fn join(&mut self) -> JoinFuture<A> {
         self.handle.join()
     }
 
+    #[deprecated(note = "use `consume` instead")]
     pub fn stop_and_join(mut self) -> Result<JoinFuture<A>> {
         self.addr.stop()?;
         Ok(self.join())
     }
 
+    /// Stops the actor and returns it.
     pub async fn consume(mut self) -> Result<A> {
         self.addr.stop()?;
-        let actor = self.join().await;
-        actor.ok_or(crate::error::ActorError::AlreadyStopped)
+        self.join()
+            .await
+            .ok_or(crate::error::ActorError::AlreadyStopped)
     }
 
     pub const fn as_addr(&self) -> &Addr<A> {
@@ -244,6 +249,7 @@ impl<A: Actor> OwningAddr<A> {
     }
 
     pub async fn ping(&self) -> Result<()> {
+        log::trace!("pinging {}", A::NAME);
         self.addr.ping().await
     }
 
